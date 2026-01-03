@@ -1,5 +1,11 @@
 import { google } from 'googleapis';
-import { InvoiceData } from './aiService';
+import { InvoiceData } from '../types/invoice';
+import {
+    SHEET_HEADERS,
+    CATEGORY_TO_COLUMN,
+    USERS_SHEET_NAME,
+    USERS_HEADERS
+} from '../config';
 
 // Auth setup - requires GOOGLE_APPLICATION_CREDENTIALS env var
 const auth = new google.auth.GoogleAuth({
@@ -11,71 +17,11 @@ const auth = new google.auth.GoogleAuth({
 
 const sheets = google.sheets({ version: 'v4', auth });
 
-// Hebrew column headers for user sheets
-const SHEET_HEADERS = [
-    'תאריך',           // A - Date
-    'ספק',             // B - Supplier
-    'מספר חשבונית',    // C - Invoice Number
-    'אחזקה',           // D
-    'אחזקת רכב',       // E
-    'דלק',             // F
-    'חניה',            // G
-    'ביטוח רכב',       // H
-    'רישיון רכב',      // I
-    'השכרת רכב',       // J
-    'אינטרנט',         // K
-    'ביטוח דירה',      // L
-    'ארנונה',          // M
-    'מים',             // N
-    'חשמל',            // O
-    'טלפון נייד',      // P
-    'כיבודים',         // Q
-    'ביטוח מקצועי',    // R
-    'ספרות והשתלמות',  // S
-    'שרותים מקצועיים', // T
-    'שכירות',          // U
-    'משרדיות',         // V
-    'הכנסות',          // W - Income
-    'קישור'            // X - File Link
-];
-
-// Map category_he to column index (0-based, starting from column D which is index 3)
-const CATEGORY_TO_COLUMN: { [key: string]: number } = {
-    'אחזקה': 3,
-    'אחזקת רכב': 4,
-    'דלק': 5,
-    'חניה': 6,
-    'ביטוח רכב': 7,
-    'רישיון רכב': 8,
-    'השכרת רכב': 9,
-    'אינטרנט': 10,
-    'ביטוח דירה': 11,
-    'ארנונה': 12,
-    'מים': 13,
-    'חשמל': 14,
-    'טלפון נייד': 15,
-    'כיבודים': 16,
-    'ביטוח מקצועי': 17,
-    'ספרות והשתלמות': 18,
-    'שרותים מקצועיים': 19,
-    'שכירות': 20,
-    'משרדיות': 21,
-    'הכנסות': 22
-};
-
 // In-memory cache for user sheet names (avoids repeated lookups)
 const userSheetCache = new Map<string, string>();
 
 // Cache to track users already logged to prevent duplicates
 const loggedUsers = new Set<string>();
-
-// Users sheet headers
-const USERS_SHEET_NAME = 'users';
-const USERS_HEADERS = [
-    'תאריך הגעה',   // A - Arrival Date/Time
-    'שם',           // B - Name
-    'מזהה משתמש'    // C - User ID
-];
 
 /**
  * Get or create a sheet (tab) within the main spreadsheet for a user

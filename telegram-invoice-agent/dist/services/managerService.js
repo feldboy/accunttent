@@ -3,12 +3,12 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.sendApprovalRequest = exports.setBotForNotifications = void 0;
 const telegraf_1 = require("telegraf");
 let botInstance = null;
-const MANAGER_CHAT_ID = process.env.MANAGER_CHAT_ID;
 const setBotForNotifications = (bot) => {
     botInstance = bot;
 };
 exports.setBotForNotifications = setBotForNotifications;
 const sendApprovalRequest = async (clientName, invoice, fileUrl, invoiceId) => {
+    const MANAGER_CHAT_ID = process.env.MANAGER_CHAT_ID;
     if (!botInstance)
         throw new Error('Bot instance not set for notifications');
     if (!MANAGER_CHAT_ID)

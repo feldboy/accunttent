@@ -1,4 +1,6 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { InvoiceData } from '../types/invoice';
+import { CATEGORIES, SYSTEM_PROMPT } from '../config';
 
 // Lazy initialization to ensure dotenv is loaded first
 let genAI: GoogleGenerativeAI | null = null;
@@ -14,56 +16,6 @@ const getGenAI = () => {
     }
     return genAI;
 };
-
-export interface InvoiceData {
-    date: string;
-    supplier_name: string;
-    invoice_number?: string;
-    amount_before_vat: number;
-    vat_amount: number;
-    total_amount: number;
-    category: string;
-    category_he: string;
-}
-
-// קטגוריות מעודכנות בהתאם למפרט החדש
-const CATEGORIES = [
-    { id: 'maintenance', he: 'אחזקה', en: 'Maintenance' },
-    { id: 'vehicle_maintenance', he: 'אחזקת רכב', en: 'Vehicle Maintenance' },
-    { id: 'fuel', he: 'דלק', en: 'Fuel' },
-    { id: 'parking', he: 'חניה', en: 'Parking' },
-    { id: 'vehicle_insurance', he: 'ביטוח רכב', en: 'Vehicle Insurance' },
-    { id: 'vehicle_license', he: 'רישיון רכב', en: 'Vehicle License' },
-    { id: 'vehicle_rental', he: 'השכרת רכב', en: 'Vehicle Rental' },
-    { id: 'internet', he: 'אינטרנט', en: 'Internet' },
-    { id: 'home_insurance', he: 'ביטוח דירה', en: 'Home Insurance' },
-    { id: 'property_tax', he: 'ארנונה', en: 'Property Tax' },
-    { id: 'water', he: 'מים', en: 'Water' },
-    { id: 'electricity', he: 'חשמל', en: 'Electricity' },
-    { id: 'mobile_phone', he: 'טלפון נייד', en: 'Mobile Phone' },
-    { id: 'refreshments', he: 'כיבודים', en: 'Refreshments' },
-    { id: 'professional_insurance', he: 'ביטוח מקצועי', en: 'Professional Insurance' },
-    { id: 'education', he: 'ספרות והשתלמות', en: 'Education' },
-    { id: 'professional_services', he: 'שירותים מקצועיים', en: 'Professional Services' },
-    { id: 'rent', he: 'שכירות', en: 'Rent' },
-    { id: 'office_supplies', he: 'משרדיות', en: 'Office Supplies' },
-    { id: 'consumables', he: 'ציוד מתכלה', en: 'Consumables' },
-    { id: 'hoa_fees', he: 'ועד בית', en: 'HOA Fees' },
-    { id: 'fixed_assets', he: 'רכוש קבוע', en: 'Fixed Assets' },
-    { id: 'other', he: 'אחר', en: 'Other' },
-];
-
-const SYSTEM_PROMPT = `אתה עוזר חשבונאי מומחה. חלץ את השדות הבאים מהחשבונית:
-- date (DD/MM/YYYY)
-- supplier_name (שם העסק/ספק)
-- invoice_number (מספר חשבונית, אופציונלי)
-- amount_before_vat (סכום לפני מע"מ, מספר)
-- vat_amount (סכום מע"מ, מספר)
-- total_amount (סכום כולל מע"מ, מספר)
-- category (אחת מהקטגוריות: ${CATEGORIES.map(c => c.id).join(', ')})
-
-אם שדה חסר, החזר null.
-החזר רק JSON תקין.`;
 
 export const processImage = async (imageUrl: string): Promise<InvoiceData> => {
     console.log(`Processing image with Gemini: ${imageUrl}`);

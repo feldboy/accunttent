@@ -1,5 +1,5 @@
 import { Telegraf, Markup } from 'telegraf';
-import { InvoiceData } from './aiService';
+import { InvoiceData } from '../types/invoice';
 
 let botInstance: Telegraf | null = null;
 

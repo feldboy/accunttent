@@ -1,89 +1,115 @@
 "use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.processPdf = exports.processImage = void 0;
-const openai_1 = __importDefault(require("openai"));
-const pdfParse = require('pdf-parse');
-const openai = new openai_1.default({
-    apiKey: process.env.OPENAI_API_KEY,
-});
-const SYSTEM_PROMPT = `You are an expert accountant assistant. Extract the following fields from the invoice:
-- date (DD/MM/YYYY)
-- supplier_name
-- invoice_number (optional)
-- amount_before_vat (number)
-- vat_amount (number)
-- total_amount (number)
-- category (One of: Raw Materials, Rent, Utilities, Telecom, Fuel/Vehicle, Office Supplies, Professional Services, Salaries, Insurance, Marketing, Other)
-
-If a field is missing, return null. 
-Return ONLY valid JSON.
-`;
+const generative_ai_1 = require("@google/generative-ai");
+const config_1 = require("../config");
+// Lazy initialization to ensure dotenv is loaded first
+let genAI = null;
+const getGenAI = () => {
+    if (!genAI) {
+        const apiKey = process.env.GEMINI_API_KEY;
+        if (!apiKey) {
+            throw new Error('GEMINI_API_KEY is not set in environment');
+        }
+        console.log('Initializing Gemini with API key:', apiKey.substring(0, 10) + '...');
+        genAI = new generative_ai_1.GoogleGenerativeAI(apiKey);
+    }
+    return genAI;
+};
 const processImage = async (imageUrl) => {
-    console.log(`Processing image: ${imageUrl}`);
+    console.log(`Processing image with Gemini: ${imageUrl}`);
     try {
-        const response = await openai.chat.completions.create({
-            model: "gpt-4o",
-            messages: [
-                { role: "system", content: SYSTEM_PROMPT },
-                {
-                    role: "user",
-                    content: [
-                        { type: "text", text: "Analyze this invoice image and extract data." },
-                        { type: "image_url", image_url: { url: imageUrl } }
-                    ]
+        // Download image and convert to base64
+        const response = await fetch(imageUrl);
+        const arrayBuffer = await response.arrayBuffer();
+        const base64 = Buffer.from(arrayBuffer).toString('base64');
+        // Telegram often returns octet-stream, detect proper MIME from URL or default to jpeg
+        let mimeType = response.headers.get('content-type') || 'image/jpeg';
+        if (mimeType === 'application/octet-stream') {
+            // Try to detect from URL extension
+            if (imageUrl.includes('.png')) {
+                mimeType = 'image/png';
+            }
+            else if (imageUrl.includes('.webp')) {
+                mimeType = 'image/webp';
+            }
+            else {
+                mimeType = 'image/jpeg'; // Default for Telegram photos
+            }
+        }
+        const model = getGenAI().getGenerativeModel({ model: 'gemini-2.5-flash' });
+        const result = await model.generateContent([
+            config_1.SYSTEM_PROMPT,
+            {
+                inlineData: {
+                    mimeType,
+                    data: base64
                 }
-            ],
-            response_format: { type: "json_object" }
-        });
-        const content = response.choices[0].message.content;
-        if (!content)
-            throw new Error("No content from OpenAI");
-        const data = JSON.parse(content);
+            },
+            'נתח את תמונת החשבונית הזו וחלץ את הנתונים. החזר JSON בלבד.'
+        ]);
+        const text = result.response.text();
+        console.log('Gemini response:', text);
+        // Extract JSON from response
+        const jsonMatch = text.match(/\{[\s\S]*\}/);
+        if (!jsonMatch)
+            throw new Error('No JSON found in Gemini response');
+        const data = JSON.parse(jsonMatch[0]);
         return validateAndCalculate(data);
     }
     catch (error) {
-        console.error("OpenAI Image Error:", error);
+        console.error('Gemini Image Error:', error);
         throw error;
     }
 };
 exports.processImage = processImage;
 const processPdf = async (pdfBuffer) => {
-    console.log('Processing PDF...');
+    console.log('Processing PDF with Gemini...');
     try {
-        const data = await pdfParse(pdfBuffer);
-        const text = data.text;
-        if (!text || text.length < 50) {
-            throw new Error("PDF seems to be an image scan (no text layer). Please convert to image.");
-        }
-        return extractDataFromText(text);
+        // Send PDF directly to Gemini (it supports PDF)
+        const base64 = pdfBuffer.toString('base64');
+        const model = getGenAI().getGenerativeModel({ model: 'gemini-2.5-flash' });
+        const result = await model.generateContent([
+            config_1.SYSTEM_PROMPT,
+            {
+                inlineData: {
+                    mimeType: 'application/pdf',
+                    data: base64
+                }
+            },
+            'נתח את קובץ ה-PDF הזה וחלץ את פרטי החשבונית. החזר JSON בלבד.'
+        ]);
+        const text = result.response.text();
+        console.log('Gemini PDF response:', text);
+        const jsonMatch = text.match(/\{[\s\S]*\}/);
+        if (!jsonMatch)
+            throw new Error('No JSON found in Gemini response');
+        const data = JSON.parse(jsonMatch[0]);
+        return validateAndCalculate(data);
     }
     catch (error) {
-        console.error("PDF Processing Error:", error);
+        console.error('PDF Processing Error:', error);
         throw error;
     }
 };
 exports.processPdf = processPdf;
 const extractDataFromText = async (text) => {
     try {
-        const response = await openai.chat.completions.create({
-            model: "gpt-4o",
-            messages: [
-                { role: "system", content: SYSTEM_PROMPT },
-                { role: "user", content: `Analyze this invoice text:\n\n${text}` }
-            ],
-            response_format: { type: "json_object" }
-        });
-        const content = response.choices[0].message.content;
-        if (!content)
-            throw new Error("No content from OpenAI");
-        const data = JSON.parse(content);
+        const model = getGenAI().getGenerativeModel({ model: 'gemini-2.5-flash' });
+        const result = await model.generateContent([
+            config_1.SYSTEM_PROMPT,
+            `נתח את טקסט החשבונית הבא:\n\n${text}\n\nהחזר JSON בלבד.`
+        ]);
+        const responseText = result.response.text();
+        console.log('Gemini text response:', responseText);
+        const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+        if (!jsonMatch)
+            throw new Error('No JSON found in Gemini response');
+        const data = JSON.parse(jsonMatch[0]);
         return validateAndCalculate(data);
     }
     catch (error) {
-        console.error("OpenAI Text Error:", error);
+        console.error('Gemini Text Error:', error);
         throw error;
     }
 };
@@ -107,6 +133,9 @@ const validateAndCalculate = (data) => {
         vat_amount = Number((amount_before_vat * 0.17).toFixed(2));
         total_amount = Number((amount_before_vat + vat_amount).toFixed(2));
     }
+    // Find Hebrew category name
+    const categoryId = data.category || 'other';
+    const categoryInfo = config_1.CATEGORIES.find(c => c.id === categoryId) || config_1.CATEGORIES.find(c => c.id === 'other');
     return {
         date: data.date || '',
         supplier_name: data.supplier_name || 'Unknown',
@@ -114,6 +143,7 @@ const validateAndCalculate = (data) => {
         amount_before_vat,
         vat_amount,
         total_amount,
-        category: data.category || 'Other'
+        category: categoryInfo.id,
+        category_he: categoryInfo.he
     };
 };

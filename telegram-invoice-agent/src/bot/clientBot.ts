@@ -1,6 +1,7 @@
 import { Telegraf } from 'telegraf';
 import { isClientRegistered, getClientDetails } from '../services/clientService';
-import { processImage, processPdf, InvoiceData } from '../services/aiService';
+import { processImage, processPdf } from '../services/aiService';
+import { InvoiceData } from '../types/invoice';
 import { sendApprovalRequest, setBotForNotifications } from '../services/managerService';
 import { logInvoiceToSheet, uploadFileToDrive, logUserToSheet } from '../services/googleService';
 import * as crypto from 'crypto';
