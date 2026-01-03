@@ -2,13 +2,13 @@ import { Telegraf, Markup } from 'telegraf';
 import { InvoiceData } from './aiService';
 
 let botInstance: Telegraf | null = null;
-const MANAGER_CHAT_ID = process.env.MANAGER_CHAT_ID;
 
 export const setBotForNotifications = (bot: Telegraf) => {
     botInstance = bot;
 };
 
 export const sendApprovalRequest = async (clientName: string, invoice: InvoiceData, fileUrl: string, invoiceId?: string) => {
+    const MANAGER_CHAT_ID = process.env.MANAGER_CHAT_ID;
     if (!botInstance) throw new Error('Bot instance not set for notifications');
     if (!MANAGER_CHAT_ID) throw new Error('MANAGER_CHAT_ID not set');
 
